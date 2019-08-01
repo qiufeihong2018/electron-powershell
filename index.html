@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>electron-guyi</title>
+  <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+</head>
+
+<body>
+  <div id="app">
+    <el-row>
+      <el-col :span='6'>
+        <el-menu default-active="1" class="el-menu-vertical-demo" @select="handleSelect">
+          <el-menu-item index="1">
+            <i class="el-icon-setting"></i>
+            <span slot="title">系统初始化</span>
+          </el-menu-item>
+          <el-menu-item index="2" :disabled='isDisabled'>
+            <i class="el-icon-setting"></i>
+            <span slot="title">自定义黑名单</span>
+          </el-menu-item>
+          <el-menu-item index="3" :disabled='isDisabled'>
+            <i class="el-icon-menu"></i>
+            <span slot="title">查看白名单日志</span>
+          </el-menu-item>
+          <el-menu-item index="4" :disabled='isDisabled'>
+            <i class="el-icon-document"></i>
+            <span slot="title">系统部署</span>
+          </el-menu-item>
+        </el-menu>
+      </el-col>
+      <el-col :span='18'>
+        <el-card>
+          <div slot="header" class="clearfix">
+            <span>输出结果</span>
+          </div>
+          <div class="main-card" v-loading="loading">
+            <div v-for='(i,key) in info' :key='key'>
+              {{i}}
+            </div>
+          </div>
+        </el-card>
+        <div v-if="key === '1'">
+          <div class="btn-group">
+            <el-button size="small" type="primary" @click="downloadAccesschk">系统初始化</el-button>
+          </div>
+        </div>
+        <div v-if="key === '2'">
+          <el-upload class="upload-demo" action="https://jsonplaceholder.typicode.com/posts/"
+            :on-preview="handlePreview" :on-remove="handleRemove" :before-remove="beforeRemove" multiple :limit="5"
+            :on-exceed="handleExceed" :file-list="fileList" :on-success="handleSuccess">
+            <el-button size="small" type="primary">选择文件</el-button>
+          </el-upload>
+          <div class="btn-group">
+            <el-button size="small" type="primary" @click="saveFile">保存</el-button>
+            <el-button size="small" type="primary" @click="clearInfo">清空</el-button>
+          </div>
+        </div>
+        <div v-if="key === '3'">
+          <div class="btn-group">
+            <el-button size="small" type="primary" @click="getAppLocker">获取事件日志</el-button>
+            <el-button size="small" type="primary" @click="exportPolicy">导出至EXCEL</el-button>
+            <el-button size="small" type="primary" @click="clearLocal">清除事件日志</el-button>
+          </div>
+        </div>
+        <div v-if="key === '4'">
+          <div class="btn-group">
+            <el-button size="small" type="primary" @click="createPolicies">应用至系统</el-button>
+            <el-button size="small" type="primary" @click="clearLocal">清空系统策略</el-button>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+  </div>
+  <!-- You can also require other files to run in this process -->
+  <script src="./renderer.js"></script>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+<!-- import JavaScript -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script>
+  var spawn = require("child_process").spawn, child;
+  var fs = require("fs")
+  // 开发环境
+  var AaronLockerPath = 'C:/Users/devue/Desktop/'
+  // 生产环境
+  // var AaronLockerPath = './resources/app/'
+  var iconv = require('iconv-lite');
+
+  new Vue({
+    el: '#app',
+    data: function () {
+      return {
+        info: [],
+        key: '1',
+        fileList: [],
+        isDisabled: true,
+        loading: false
+      }
+    },
+    created() {
+      this.existsAccesschk()
+    },
+
+    methods: {
+      existsAccesschk() {
+        fs.exists(`${AaronLockerPath}AaronLocker-master/AaronLocker/accesschk.exe`, (exists) => {
+          if (exists == true) {
+            this.isDisabled = false
+          } else {
+            this.isDisabled = true
+          }
+        });
+      },
+      createPolicies() {
+        this.loading = true
+
+        child = spawn("powershell.exe", [`${AaronLockerPath}AaronLocker-master/AaronLocker/Create-Policies.ps1 -Rescan`])
+
+        child.stdout.on("data", (data) => {
+          this.info.push(`Create-Policies.ps1 data:${iconv.decode(data, 'cp936')}`)
+        });
+        child.stderr.on("data", (data) => {
+          this.info.push(`Create-Policies.ps1 errors: ${iconv.decode(data, 'cp936')}`)
+        });
+
+        child.on("exit", () => {
+          this.info.push('Create-Policies.ps1 finished')
+          this.loading = false
+        });
+        child.stdin.end(); //end input    
+      },
+      clearLocal() {
+        this.loading = true
+
+        child = spawn("powershell.exe", [`${AaronLockerPath}AaronLocker-master/AaronLocker/LocalConfiguration/ClearLocalAppLockerPolicy.ps1`]);
+
+        child.stdout.on("data", (data) => {
+          this.info.push(`ClearLocalAppLockerPolicy.ps1 Data: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.stderr.on("data", (data) => {
+          this.info.push(`ClearLocalAppLockerPolicy.ps1 Errors: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.on("exit", () => {
+          this.info.push("Powershell Script ClearLocalAppLockerPolicy.ps1 finished")
+          this.loading = false
+        });
+        child.stdin.end(); //end input       
+      },
+      exportPolicy() {
+        this.loading = true
+
+        child = spawn("powershell.exe", [`${AaronLockerPath}AaronLocker-master/AaronLocker/ExportPolicy-ToExcel.ps1`]);
+
+        child.stdout.on("data", (data) => {
+          this.info.push(`ExportPolicy-ToExcel.ps1 Data: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.stderr.on("data", (data) => {
+          this.info.push(`ExportPolicy-ToExcel.ps1 Errors: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.on("exit", () => {
+          this.info.push("Powershell Script ExportPolicy-ToExcel.ps1 finished")
+          this.loading = false
+        });
+        child.stdin.end(); //end input       
+      },
+      getAppLocker() {
+        this.loading = true
+
+        child = spawn("powershell.exe", [`${AaronLockerPath}AaronLocker-master/AaronLocker/Get-AppLockerEvents.ps1`]);
+
+        child.stdout.on("data", (data) => {
+          this.info.push(`Get-AppLockerEvents.ps1 Data: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.stderr.on("data", (data) => {
+          this.info.push(`Get-AppLockerEvents.ps1 Errors: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.on("exit", () => {
+          this.info.push("Powershell Script Get-AppLockerEvents.ps1 finished")
+          this.loading = false
+        });
+        child.stdin.end(); //end input       
+      },
+      downloadAccesschk() {
+        this.loading = true
+        child = spawn("powershell.exe", [`${AaronLockerPath}AaronLocker-master/AaronLocker/Support/DownloadAccesschk.ps1`]);
+
+        child.stdout.on("data", (data) => {
+          this.info.push(`DownloadAccesschk.ps1 Data: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.stderr.on("data", (data) => {
+          this.info.push(`DownloadAccesschk.ps1 Errors: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.on("exit", () => {
+          this.info.push("Powershell Script DownloadAccesschk.ps1 finished")
+          this.existsAccesschk()
+          this.loading = false
+        });
+        child.stdin.end(); //end input     
+
+      },
+      saveFile() {
+        this.loading = true
+
+        for (let i = 0; i < this.fileList.length; i++) {
+          let path = `\n"${this.fileList[i].raw.path}"\n`
+          fs.open(`${AaronLockerPath}AaronLocker-master/AaronLocker/CustomizationInputs/GetExeFilesToBlacklist.ps1`, 'a+', (err, fd) => {
+            if (err) {
+              console.log(err)
+            }
+            fs.appendFile(fd, path, 'utf8', (err) => {
+
+              if (err) {
+                console.log(err)
+              }
+              fs.close(fd, (err) => {
+                if (err) throw err;
+
+              });
+              // console.log('GetExeFilesToBlacklist update')
+            })
+          })
+        }
+
+        // console.log('GetExeFilesToBlacklist.ps1 start')
+        // child = spawn("powershell.exe", [`${AaronLockerPath}AaronLocker-master\\AaronLocker\\CustomizationInputs\\GetExeFilesToBlacklist.ps1`]);
+        child = spawn("powershell.exe", [`${AaronLockerPath}AaronLocker-master/AaronLocker/CustomizationInputs/GetExeFilesToBlacklist.ps1`]);
+
+        child.stdout.on("data", (data) => {
+          this.info.push(`GetExeFilesToBlacklist.ps1 Data: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.stderr.on("data", (data) => {
+          this.info.push(`GetExeFilesToBlacklist.ps1 Errors: ${iconv.decode(data, 'cp936')} `)
+        });
+        child.on("exit", () => {
+          this.info.push("Powershell Script GetExeFilesToBlacklist.ps1 finished")
+          this.loading = false
+        });
+        child.stdin.end(); //end input       
+      },
+      clearInfo() {
+        this.info = []
+      },
+      handleRemove(file, fileList) {
+        // console.log(file, fileList);
+      },
+      handlePreview(file) {
+        // console.log(file);
+      },
+      dedupe(oldArr) {
+        let allArr = []
+        for (let i = 0; i < oldArr.length; i++) {
+
+
+          let flag = true;
+          for (let j = 0; j < allArr.length; j++) {
+            if (oldArr[i].name == allArr[j].name) {
+              flag = false;
+            };
+          };
+          if (flag) {
+            allArr.push(oldArr[i]);
+          };
+        };
+        return allArr
+
+      },
+      handleSuccess(response, file, fileList) {
+        this.fileList = fileList
+        this.fileList = this.dedupe(this.fileList)
+      },
+      handleExceed(files, fileList) {
+        this.$message.warning(`当前限制选择 5 个文件，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件`);
+      },
+      beforeRemove(file, fileList) {
+        return this.$confirm(`确定移除 ${file.name}？`);
+      },
+      handleSelect(key, keyPath) {
+        this.info = []
+        this.key = key
+        this.loading=false
+      }
+    }
+  })
+</script>
+<style>
+  .upload-demo {
+    margin: 10px;
+  }
+
+  .btn-group {
+    margin: 10px;
+  }
+
+
+  * {
+
+    margin: 0px;
+
+    padding: 0px;
+
+  }
+
+  html,
+  body,
+  #app,
+  .el-row,
+  .el-col-6,
+  .el-col-18 {
+    height: 100%
+  }
+
+  .el-card,
+  .el-card__body,
+  .main-card {
+    height: 80%;
+  }
+
+  .main-card {
+    overflow: auto;
+  }
+</style>
+
+</html>

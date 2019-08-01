@@ -1,0 +1,46 @@
+{
+  "name": "electron-quick-start",
+  "version": "1.0.0",
+  "description": "A minimal Electron application",
+  "main": "main.js",
+  "build": {
+    "appId": "com.xxx.app",
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    }
+  },
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-packager ./ guyi --platform=win32 --arch=x64 --app-version=1.0.0 --overwrite"
+  },
+  "repository": "https://github.com/electron/electron-quick-start",
+  "keywords": [
+    "Electron",
+    "quick",
+    "start",
+    "tutorial",
+    "demo"
+  ],
+  "author": "GitHub",
+  "license": "CC0-1.0",
+  "devDependencies": {
+    "child_process": "^1.0.2",
+    "electron": "^5.0.7",
+    "electron-builder": "^21.1.5",
+    "electron-package": "^0.1.0",
+    "fs": "0.0.1-security",
+    "path": "^0.12.7"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.5.0"
+  }
+}
